@@ -1,0 +1,162 @@
+# =================================================================================================
+# Quality Assurance (QA) Environment Configuration
+#
+# This file contains the configuration for the 'qa' profile. The QA environment is used for
+# testing new features and ensuring they meet quality standards before moving to staging.
+# =================================================================================================
+
+spring:
+  config:
+    activate:
+      # This configuration is activated when the 'qa' profile is active.
+      on-profile: qa
+
+  # ===============================================================================================
+  # Database Configuration
+  # ===============================================================================================
+  datasource:
+    # The JDBC URL for the PostgreSQL database in the QA environment.
+    url: jdbc:postgresql://${DB_HOST:qa-db-host}:${DB_PORT:5432}/${DB_NAME:order_db_qa}
+    # Database user is defaulted, but password must be provided via environment variable.
+    username: ${DB_USER:qa_user}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    # HikariCP connection pool settings, tuned for a QA workload.
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+
+  # ===============================================================================================
+  # JPA & Hibernate Configuration
+  # ===============================================================================================
+  jpa:
+    hibernate:
+      # 'validate' ensures the Hibernate entity model matches the database schema. This is a safe
+      # default for QA to prevent accidental schema changes.
+      ddl-auto: validate
+    # SQL logging is disabled to keep logs clean.
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # ===============================================================================================
+  # Redis Configuration
+  # ===============================================================================================
+  data:
+    redis:
+      # Redis connection details are provided by environment variables.
+      host: ${REDIS_HOST:qa-redis-host}
+      port: ${REDIS_PORT:6379}
+      # Allows an empty password if the REDIS_PASSWORD env var is not set. This might be acceptable
+      # for some QA environments, but using a password is recommended.
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000
+      # Lettuce connection pool settings.
+      lettuce:
+        pool:
+          max-active: 15
+          max-idle: 10
+          min-idle: 5
+
+# =================================================================================================
+# gRPC Configuration
+# =================================================================================================
+grpc:
+  server:
+    port: 9090
+    # Server reflection is disabled for security.
+    enable-reflection: false
+    # gRPC security should be enabled in QA to mirror production.
+    security:
+      enabled: true
+  client:
+    user-service:
+      # The address for the user-service in the QA Kubernetes namespace.
+      address: static://user-service:9091
+      negotiation-type: PLAINTEXT
+
+# =================================================================================================
+# Security Configuration
+# =================================================================================================
+security:
+  cors:
+    # CORS configuration to allow requests from the QA frontend.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://qa-frontend.example.com}
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "Authorization,Content-Type,X-Requested-With"
+    allow-credentials: true
+  rate-limit:
+    # Enable rate limiting to prevent abuse.
+    enabled: true
+    max-requests-per-minute: 100
+
+# =================================================================================================
+# Resilience4j Configuration (Circuit Breaker)
+# =================================================================================================
+resilience4j:
+  circuitbreaker:
+    # Circuit breaker settings are slightly more relaxed than staging to allow for more
+    # experimental testing without constantly tripping the breakers.
+    instances:
+      orderService:
+        failure-rate-threshold: 40
+        minimum-number-of-calls: 15
+      userService:
+        failure-rate-threshold: 35
+        minimum-number-of-calls: 10
+
+# =================================================================================================
+# Monitoring & Management (Spring Boot Actuator)
+# =================================================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose standard actuator endpoints for monitoring.
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      # Show detailed health info only to authorized users.
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        # Enable Prometheus endpoint for metrics scraping.
+        enabled: true
+        step: 30s # Scrape interval.
+
+# =================================================================================================
+# Logging Configuration
+# =================================================================================================
+logging:
+  level:
+    com.poc.grpc: INFO
+    org.springframework.security: WARN
+    root: WARN
+  file:
+    # Configure log file rotation for the QA environment.
+    name: /var/log/order-service/order-service-qa.log
+    max-size: 100MB
+    max-history: 30
+
+# =================================================================================================
+# Application-Specific Configuration
+# =================================================================================================
+app:
+  jwt:
+    # !!! SECURITY WARNING !!!
+    # The JWT secret is hardcoded. This is a security risk. For QA, it should ideally be
+    # managed via environment variables or a config service.
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    # Token expiration time (24 hours).
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+
+server:
+  port: 8080

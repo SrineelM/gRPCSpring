@@ -1,0 +1,109 @@
+# ======================================================================================================================
+# LOCAL PROFILE CONFIGURATION - USER SERVICE
+#
+# This configuration file is specific to the 'local' Spring profile for the User Service. It is intended for
+# development on a local machine. It uses an in-memory H2 database, disables certain security features for ease of
+# testing, and enables verbose logging for debugging purposes. This file should not be used in production.
+# ======================================================================================================================
+
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  # Use H2 in-memory database for easy setup and teardown.
+  datasource:
+    url: jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE  # CHANGED: Different DB name to avoid conflicts
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    platform: h2
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+
+  # Enable H2 web console for easy database inspection.
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # JPA settings for local development.
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Connect to a local Redis instance.
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 1                        # CHANGED: Use different Redis DB (1) to avoid conflicts with order-service
+      timeout: 2000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+
+# gRPC settings for User Service
+grpc:
+  server:
+    port: 9091                           # User Service gRPC server port
+    enable-reflection: true
+    health-service-enabled: true         # CHANGED: Enable health service for better monitoring
+  # REMOVED: All client configurations that were causing circular dependencies
+  # User Service acts as a pure server and doesn't need to call other gRPC services
+  # If future requirements need user-service to call other services, add them here specifically
+
+# Security configuration for local development
+security:
+  cors:
+    allowed-origins: "*"
+    allowed-methods: "*"
+    allowed-headers: "*"
+  rate-limit:
+    enabled: false
+
+# Actuator endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  security:
+    enabled: false
+
+# Logging configuration
+logging:
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+  level:
+    com.poc.grpc: DEBUG
+    org.springframework.security: DEBUG
+    io.grpc: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: INFO
+    org.springframework: INFO
+
+# Application-specific configuration
+app:
+  jwt:
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+
+# HTTP server configuration
+server:
+  port: 8081                             # User Service HTTP port

@@ -1,0 +1,148 @@
+# Spring Boot application configuration
+spring:
+  application:
+    # Standardize application name. It's used as a prefix for Redis keys.
+    name: order-service
+  profiles:
+    # Default profile for local development. Can be overridden by an environment variable.
+    active: local
+
+  # Datasource configuration for PostgreSQL
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:userdb}
+    username: ${DB_USER:user}
+    # It's recommended to use environment variables for secrets
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+    # Hikari connection pool settings
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+  # JPA and Hibernate settings
+  jpa:
+    hibernate:
+      # In production, 'validate' or 'none' is recommended over 'update'
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Redis configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # Use environment variables for Redis password
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000ms
+      key-prefix: ${spring.application.name}
+      # Lettuce connection pool settings
+      lettuce:
+        pool:
+          max-active: 15
+          max-idle: 8
+          min-idle: 2
+
+# gRPC server and client configuration
+grpc:
+  server:
+    port: 8090
+    # Disable reflection in production for security
+    enable-reflection: false
+    max-inbound-message-size: 16MB
+    max-inbound-metadata-size: 8KB
+    keep-alive-time: 30s
+    keep-alive-timeout: 10s
+    permit-keep-alive-without-calls: true
+  client:
+    user-service:
+      enable-keep-alive: true
+      keep-alive-without-calls: true
+      keep-alive-time: 30s
+      keep-alive-timeout: 10s
+      max-inbound-message-size: 16MB
+      negotiation-type: plaintext
+
+# Custom application properties
+app:
+  jwt:
+    # JWT secret should be a strong, randomly generated string and loaded from a secure source
+    secret: ${JWT_SECRET:}
+    enabled: true
+    expiration: 86400000 # 24 hours
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+  rate-limit:
+    max-requests-per-minute: 60
+  cors:
+    allowed-origins: "http://localhost:3000,http://localhost:8080"
+
+# Resilience4j configuration for circuit breakers, retries, and timeouts
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: TIME_BASED
+        sliding-window-size: 30
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 70
+        slow-call-duration-threshold: 2s
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+    instances:
+      userService:
+        base-config: default
+        failure-rate-threshold: 60
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - io.grpc.StatusRuntimeException
+    instances:
+      userService:
+        base-config: default
+        max-attempts: 3
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+        cancel-running-future: true
+    instances:
+      userService:
+        base-config: default
+        timeout-duration: 10s
+
+# Spring Boot Actuator management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging configuration
+logging:
+  level:
+    com.poc.grpc: INFO
+    io.grpc: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: INFO

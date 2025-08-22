@@ -1,0 +1,2 @@
+com.poc.grpc.common.config.GrpcClientConfig
+com.poc.grpc.common.security.config.JwtSecurityAutoConfiguration

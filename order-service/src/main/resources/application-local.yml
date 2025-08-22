@@ -1,0 +1,134 @@
+# =================================================================================================
+# LOCAL PROFILE CONFIGURATION - ORDER SERVICE
+#
+# This file contains the configuration for the 'local' profile for the Order Service, designed
+# for developer machines. It prioritizes ease of use, fast startup, and detailed logging for debugging.
+# =================================================================================================
+
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  # ===============================================================================================
+  # H2 In-Memory Database Configuration
+  # ===============================================================================================
+  datasource:
+    url: jdbc:h2:mem:orderdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE  # CHANGED: Different DB name
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    platform: h2
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+
+  # ===============================================================================================
+  # H2 Database Console
+  # ===============================================================================================
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # ===============================================================================================
+  # JPA & Hibernate Configuration
+  # ===============================================================================================
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # ===============================================================================================
+  # Redis Configuration
+  # ===============================================================================================
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000
+      database: 0                        # Order service uses Redis DB 0
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+
+# =================================================================================================
+# gRPC Configuration - ORDER SERVICE
+# =================================================================================================
+grpc:
+  server:
+    port: 9090 # Order Service gRPC server port
+    health-service-enabled: false        # Explicitly disable health service
+    enable-reflection: true
+  client:
+    # ONLY the services that order-service actually needs to call
+    user-service:                        # Order service calls user service for user data
+      address: static://localhost:9091   # FIXED: Points to user service gRPC port (was 9090)
+      negotiation-type: plaintext
+      deadline: 30s                      # ADDED: Increased timeout for better reliability
+      keepAliveTime: 30s                 # ADDED: Keep alive settings
+      keepAliveTimeout: 5s
+      keepAliveWithoutCalls: true        # ADDED: Maintain connection even without calls
+      maxInboundMessageSize: 4MB         # ADDED: Message size limit
+    # REMOVED: order-service self-reference that was causing circular dependency
+
+# =================================================================================================
+# Security Configuration
+# =================================================================================================
+security:
+  cors:
+    allowed-origins: "*"
+    allowed-methods: "*"
+    allowed-headers: "*"
+  rate-limit:
+    enabled: false
+
+# =================================================================================================
+# Monitoring & Management (Spring Boot Actuator)
+# =================================================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  security:
+    enabled: false
+
+# =================================================================================================
+# Logging Configuration
+# =================================================================================================
+logging:
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+  level:
+    com.poc.grpc: DEBUG
+    org.springframework.security: DEBUG
+    io.grpc: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: INFO
+    org.springframework: INFO
+
+# =================================================================================================
+# Application-Specific Configuration
+# =================================================================================================
+app:
+  jwt:
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+
+# HTTP server configuration
+server:
+  port: 8080                             # Order Service HTTP port

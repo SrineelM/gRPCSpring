@@ -1,0 +1,150 @@
+# Base configuration applicable to all environments unless overridden.
+spring:
+  application:
+    # Standardized application name. Used for logging, metrics, and service discovery.
+    name: user-service
+  profiles:
+    # Default profile if none is specified. 'local' is a good choice for out-of-the-box developer experience.
+    active: local
+
+  # Default Datasource Configuration (PostgreSQL)
+  # These values are expected to be overridden in specific profiles.
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:userdb}
+    username: ${DB_USER:user}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+  # Default JPA Configuration
+  jpa:
+    hibernate:
+      # 'validate' is a safer default than 'update'. It checks if the schema matches the entities without making changes.
+      # 'local' and 'dev' profiles can override this.
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Default Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:} # Default to no password if env var is not set
+      database: 0
+      timeout: 2000ms
+      # Using the application name as a prefix prevents key collisions if Redis is shared.
+      key-prefix: "${spring.application.name}"
+      lettuce:
+        pool:
+          max-active: 15
+          max-idle: 8
+          min-idle: 2
+  main:
+    allow-bean-definition-overriding: true
+
+# Common gRPC Server and Client settings
+grpc:
+  server:
+    port: 8091
+    enable-reflection: false # Reflection is useful for debugging but should be off in prod/qa.
+    max-inbound-message-size: 16MB
+    max-inbound-metadata-size: 8KB
+    # Keep-alive settings to maintain persistent connections and detect dead ones.
+    keep-alive-time: 30s
+    keep-alive-timeout: 10s
+    permit-keep-alive-without-calls: true
+  client:
+    # Default client settings for the 'user-service' gRPC client.
+    user-service:
+      enable-keep-alive: true
+      keep-alive-without-calls: true
+      keep-alive-time: 30s
+      keep-alive-timeout: 10s
+      max-inbound-message-size: 16MB
+      negotiation-type: plaintext # Default to plaintext; prod/qa must override to 'tls'.
+
+# Common Security Configurations
+app:
+  jwt:
+    # IMPORTANT: The JWT_SECRET must be externalized and be a long, high-entropy string.
+    secret: ${JWT_SECRET:}
+    enabled: true
+    expiration: 86400000 # 24 hours
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+  rate-limit:
+    max-requests-per-minute: 60
+
+# Default Resilience4j configurations for fault tolerance patterns.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: TIME_BASED
+        sliding-window-size: 30
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 70
+        slow-call-duration-threshold: 2s
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+    instances:
+      userService:
+        base-config: default
+        failure-rate-threshold: 60
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - io.grpc.StatusRuntimeException
+    instances:
+      userService:
+        base-config: default
+        max-attempts: 3
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+        cancel-running-future: true
+    instances:
+      userService:
+        base-config: default
+        timeout-duration: 10s
+
+# Default Actuator/Monitoring settings
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Default Logging Configuration
+
+# Allow bean definition overriding to resolve conflicts
+logging:
+  level:
+    com.poc.grpc: INFO
+    io.grpc: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: INFO

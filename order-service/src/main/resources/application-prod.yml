@@ -1,0 +1,209 @@
+# =================================================================================================
+# Production Environment Configuration
+#
+# This file contains the configuration for the 'prod' profile. This is the configuration that
+# will be used when the application is running in the live production environment.
+# All sensitive values MUST be provided by environment variables or a secure configuration server.
+# =================================================================================================
+
+spring:
+  config:
+    activate:
+      # This configuration is activated when the 'prod' profile is active.
+      on-profile: prod
+
+  # ===============================================================================================
+  # Database Configuration (Production)
+  # ===============================================================================================
+  datasource:
+    # The JDBC URL for the production PostgreSQL database. All parameters must be provided
+    # via environment variables for security.
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:order_db_prod}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    # HikariCP connection pool settings, tuned for high performance and reliability in production.
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  # ===============================================================================================
+  # JPA & Hibernate Configuration (Production)
+  # ===============================================================================================
+  jpa:
+    hibernate:
+      # 'none' is the only safe option for production. Schema changes must be managed explicitly
+      # through a database migration tool like Flyway or Liquibase to prevent data loss.
+      ddl-auto: none
+    # Do not show SQL in logs for production to avoid excessive logging and potential sensitive data exposure.
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Enable JDBC batching for improved performance on bulk operations.
+        jdbc:
+          batch_size: 100
+        # Enable Hibernate second-level cache for performance, reducing database load.
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+  # ===============================================================================================
+  # Redis Configuration (Production)
+  # ===============================================================================================
+  data:
+    redis:
+      # Configuration for a Redis cluster for high availability.
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES} # e.g., "host1:6379,host2:6379"
+      # Redis password must be provided via environment variable.
+      password: ${REDIS_PASSWORD}
+      timeout: 2000
+      # SSL must be enabled for secure communication with the Redis cluster.
+      ssl: true
+      lettuce:
+        # Lettuce connection pool settings for the Redis cluster.
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 10
+        cluster:
+          # Allows the client to adapt to topology changes in the Redis cluster automatically.
+          refresh:
+            adaptive: true
+            period: 30s
+
+# =================================================================================================
+# gRPC Configuration (Production)
+# =================================================================================================
+grpc:
+  server:
+    # Disable server reflection in production to prevent exposing the full gRPC schema.
+    enable-reflection: false
+    security:
+      # Enable TLS for secure gRPC communication.
+      enabled: true
+      # Paths to TLS certificates must be provided via environment variables or mounted secrets.
+      cert-chain: ${GRPC_CERT_CHAIN:/etc/ssl/certs/server.crt}
+      private-key: ${GRPC_PRIVATE_KEY:/etc/ssl/private/server.key}
+  client:
+    user-service:
+      # The address for the user-service, using DNS for service discovery in the production cluster.
+      address: dns:///user-service.prod-namespace.svc.cluster.local:9090
+      # Enforce TLS for all client communication.
+      negotiation-type: tls
+      security:
+        # Client-side TLS configuration for mutual TLS (mTLS) if required.
+        cert-chain: ${GRPC_CLIENT_CERT_CHAIN:/etc/ssl/certs/client.crt}
+        private-key: ${GRPC_CLIENT_PRIVATE_KEY:/etc/ssl/private/client.key}
+        trust-cert-collection: ${GRPC_TRUST_CERT:/etc/ssl/certs/ca.crt}
+
+# =================================================================================================
+# Security Configuration (Production)
+# =================================================================================================
+security:
+  cors:
+    # CORS configuration to allow requests only from the production frontend application.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://app.example.com}
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "Authorization,Content-Type,X-Requested-With,X-Correlation-ID"
+    allow-credentials: true
+    max-age: 3600
+  rate-limit:
+    # Enable and configure strict rate limiting to protect against DoS attacks and abuse.
+    enabled: true
+    max-requests-per-minute: 200
+    max-requests-per-hour: 5000
+
+# =================================================================================================
+# Resilience4j Configuration (Production)
+# =================================================================================================
+resilience4j:
+  circuitbreaker:
+    # Stricter circuit breaker thresholds for high availability in production.
+    instances:
+      orderService:
+        failure-rate-threshold: 25
+        minimum-number-of-calls: 30
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 3s
+      userService:
+        failure-rate-threshold: 20
+        minimum-number-of-calls: 25
+        slow-call-duration-threshold: 1s
+
+# =================================================================================================
+# Monitoring & Management (Spring Boot Actuator - Production)
+# =================================================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose only essential endpoints for monitoring.
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      # Hide detailed health information for security. Only show UP/DOWN status publicly.
+      show-details: never
+      cache:
+        time-to-live: 10s # Cache health status to reduce load.
+  security:
+    # Secure the actuator endpoints. Requires a user with the ADMIN role.
+    enabled: true
+    roles: ADMIN
+
+# =================================================================================================
+# Logging Configuration (Production)
+# =================================================================================================
+logging:
+  file:
+    # Configure structured, rotating log files.
+    name: /var/log/order-service/order-service-prod.log
+    max-size: 100MB
+    max-history: 60
+  # Use a structured logging pattern (e.g., JSON or Logstash format) to include trace/span IDs for observability.
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId}/%X{spanId}] [%thread] %-5level %logger{36} - %msg%n"
+  level:
+    # Set appropriate log levels for production to reduce noise.
+    com.poc.grpc: INFO
+    org.springframework.security: WARN
+    io.grpc: WARN
+    org.hibernate.SQL: WARN
+    root: WARN
+    org.springframework: WARN
+
+# =================================================================================================
+# Server Configuration (Production)
+# =================================================================================================
+server:
+  port: 8080
+  # Enable graceful shutdown to allow in-flight requests to complete.
+  shutdown: graceful
+  tomcat:
+    # Production-tuned Tomcat settings.
+    connection-timeout: 20000
+    max-connections: 8192
+    threads:
+      max: 200
+      min-spare: 10
+
+# =================================================================================================
+# Application-Specific Configuration
+# =================================================================================================
+app:
+  jwt:
+    # !!! CRITICAL SECURITY WARNING !!!
+    # The JWT secret is hardcoded. This is a major security vulnerability.
+    # In production, this MUST be externalized using environment variables, a secrets management
+    # tool (like HashiCorp Vault, AWS Secrets Manager), or Spring Cloud Config with encrypted properties.
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    # Token expiration time (24 hours).
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform

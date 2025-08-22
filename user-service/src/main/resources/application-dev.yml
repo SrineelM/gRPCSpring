@@ -1,0 +1,82 @@
+# Development environment configuration
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  # Use a persistent PostgreSQL database for development.
+  datasource:
+    url: jdbc:postgresql://localhost:5432/user_db_dev # Standardized DB name
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+
+  # JPA Configuration for dev.
+  jpa:
+    hibernate:
+      # Using 'validate' is safer than 'update'. It ensures the code (Entities) and DB schema are in sync.
+      # For schema changes, it's highly recommended to use a migration tool like Flyway or Liquibase.
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Redis Configuration for dev.
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000
+
+# gRPC Configuration for dev.
+grpc:
+  server:
+    port: 9091
+    enable-reflection: true # Reflection can be enabled in dev for easier debugging.
+  client:
+    user-service:
+      address: static://localhost:9090
+      negotiation-type: plaintext
+    order-service:
+      address: static://localhost:9090
+      negotiation-type: plaintext
+
+# Monitoring Configuration for dev, exposing more detailed endpoints.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers,threaddump,heapdump
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration for dev.
+logging:
+  file:
+    name: logs/user-service-dev.log
+    max-size: 10MB
+    max-history: 30
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  level:
+    com.poc.grpc: DEBUG
+    org.springframework.security: DEBUG
+    io.grpc: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: INFO
+    org.springframework: INFO
+
+app:
+  jwt:
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+
+server:
+  port: 8081
