@@ -60,13 +60,11 @@ public class OrderServiceConfig {
     return () -> Optional.of("system");
   }
 }
-<<<<<<< HEAD
-=======
 
 /**
- * Centralized configuration for Order Service.
+ * Centralized configuration constants for Order Service.
  *
- * <p>Uses constructor injection and extracts constants for maintainability.
+ * <p>Extracts constants for maintainability and reusability across the service.
  */
 final class OrderConstants {
   private OrderConstants() {}
@@ -76,4 +74,3 @@ final class OrderConstants {
   public static final String ORDER_ID_PREFIX = "ORD-";
   public static final long ORDER_EXPIRATION_DAYS = 30;
 }
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4

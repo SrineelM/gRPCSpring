@@ -2,11 +2,8 @@ package com.poc.grpc.common.exception;
 
 import io.grpc.Status;
 import lombok.extern.slf4j.Slf4j;
-<<<<<<< HEAD
 import net.devh.boot.grpc.server.advice.GrpcAdvice;
 import net.devh.boot.grpc.server.advice.GrpcExceptionHandler;
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 
@@ -28,10 +25,7 @@ import org.springframework.security.core.AuthenticationException;
  * - Provides meaningful error messages
  */
 @Slf4j
-<<<<<<< HEAD
 @GrpcAdvice
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 public class GlobalGrpcExceptionHandler {
 
   /**
@@ -40,10 +34,7 @@ public class GlobalGrpcExceptionHandler {
    * @param e The exception to handle
    * @return gRPC Status with error details
    */
-<<<<<<< HEAD
   @GrpcExceptionHandler(EntityNotFoundException.class)
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   public Status handleEntityNotFound(EntityNotFoundException e) {
     log.warn("Entity not found: {}", e.getMessage());
     return Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e);
@@ -55,10 +46,7 @@ public class GlobalGrpcExceptionHandler {
    * @param e The exception to handle
    * @return gRPC Status with error details
    */
-<<<<<<< HEAD
   @GrpcExceptionHandler(AuthenticationException.class)
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   public Status handleAuthentication(AuthenticationException e) {
     log.warn("Authentication failed: {}", e.getMessage());
     return Status.UNAUTHENTICATED.withDescription("Authentication failed").withCause(e);
@@ -70,10 +58,7 @@ public class GlobalGrpcExceptionHandler {
    * @param e The exception to handle
    * @return gRPC Status with error details
    */
-<<<<<<< HEAD
   @GrpcExceptionHandler(AccessDeniedException.class)
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   public Status handleAccessDenied(AccessDeniedException e) {
     log.warn("Access denied: {}", e.getMessage());
     return Status.PERMISSION_DENIED.withDescription("Access denied").withCause(e);
@@ -85,10 +70,7 @@ public class GlobalGrpcExceptionHandler {
    * @param e The exception to handle
    * @return gRPC Status with error details
    */
-<<<<<<< HEAD
   @GrpcExceptionHandler(JwtGenerationException.class)
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   public Status handleJwtGeneration(JwtGenerationException e) {
     log.error("JWT generation failed: {}", e.getMessage(), e);
     return Status.INTERNAL.withDescription("Failed to generate authentication token").withCause(e);
@@ -100,10 +82,7 @@ public class GlobalGrpcExceptionHandler {
    * @param e The exception to handle
    * @return gRPC Status with error details
    */
-<<<<<<< HEAD
   @GrpcExceptionHandler(JwtValidationException.class)
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   public Status handleJwtValidation(JwtValidationException e) {
     log.warn("JWT validation failed: {}", e.getMessage());
     return Status.UNAUTHENTICATED.withDescription("Invalid authentication token").withCause(e);
@@ -115,10 +94,7 @@ public class GlobalGrpcExceptionHandler {
    * @param e The exception to handle
    * @return gRPC Status with error details
    */
-<<<<<<< HEAD
   @GrpcExceptionHandler(IllegalArgumentException.class)
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   public Status handleIllegalArgument(IllegalArgumentException e) {
     log.warn("Invalid argument: {}", e.getMessage());
     return Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e);
@@ -130,10 +106,7 @@ public class GlobalGrpcExceptionHandler {
    * @param e The exception to handle
    * @return gRPC Status with error details
    */
-<<<<<<< HEAD
   @GrpcExceptionHandler(Exception.class)
-=======
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   public Status handleGeneric(Exception e) {
     log.error("Unexpected error in gRPC service: {}", e.getMessage(), e);
     return Status.INTERNAL.withDescription("Internal server error").withCause(e);

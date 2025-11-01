@@ -104,6 +104,7 @@ logging:
 
 app:
   jwt:
+    enabled: true
     secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
     expiration-ms: 86400000
     audience: my-ecommerce-app

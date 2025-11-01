@@ -1,10 +1,5 @@
 package com.poc.grpc.common.security;
 
-<<<<<<< HEAD
-import java.util.Optional;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-=======
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.util.Optional;
@@ -15,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -31,8 +25,6 @@ import org.springframework.stereotype.Component;
  * and the application's user data model. It combines the cryptographic validation from {@link
  * JwtUtil} with user retrieval from Spring Security's {@link UserDetailsService} to produce a
  * fully-formed {@code Authentication} object.
-<<<<<<< HEAD
-=======
  *
  * <p>Features:
  *
@@ -41,7 +33,6 @@ import org.springframework.stereotype.Component;
  *   <li>Periodic cache cleanup to prevent memory leaks
  *   <li>Comprehensive error handling and logging
  * </ul>
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
  */
 @Slf4j
 @Component
@@ -55,8 +46,6 @@ public class JwtAuthenticator {
   // This decouples JWT logic from how user details (like roles and permissions) are stored.
   private final UserDetailsService userDetailsService;
 
-<<<<<<< HEAD
-=======
   // Cache configuration properties
   @Value("${app.security.user-cache.enabled:true}")
   private boolean cacheEnabled;
@@ -104,7 +93,6 @@ public class JwtAuthenticator {
     }
   }
 
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   /**
    * Validates a JWT and constructs a Spring Security Authentication object if the token is valid
    * and corresponds to an existing user.
@@ -124,14 +112,8 @@ public class JwtAuthenticator {
       // Step 2: If the token is cryptographically valid, extract the username.
       String username = jwtUtil.getUsernameFromToken(jwt);
 
-<<<<<<< HEAD
-      // Step 3: Load the user's details from the primary data source (e.g., a database).
-      // This is a critical step to ensure the user still exists, is not locked, etc.
-      UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-=======
       // Step 3: Load the user's details, potentially from cache
       UserDetails userDetails = loadUserDetails(username);
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 
       // Step 4: Create a fully authenticated token for the SecurityContext.
       // This is the standard object Spring Security uses to represent the current user's session.
@@ -151,8 +133,6 @@ public class JwtAuthenticator {
       return Optional.empty();
     }
   }
-<<<<<<< HEAD
-=======
 
   /**
    * Load user details, first checking the cache if enabled.
@@ -232,5 +212,4 @@ public class JwtAuthenticator {
       return System.currentTimeMillis() > expirationTime;
     }
   }
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 }

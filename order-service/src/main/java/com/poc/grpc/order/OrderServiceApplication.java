@@ -1,12 +1,6 @@
 package com.poc.grpc.order;
 
 import java.util.Map;
-<<<<<<< HEAD
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ConfigurableApplicationContext;
-=======
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.serverfactory.GrpcServerConfigurer;
@@ -17,7 +11,6 @@ import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 
 /**
  * Order Service Application
@@ -96,9 +89,12 @@ public class OrderServiceApplication {
       log.error("Error while logging gRPC services", e);
     }
   }
-<<<<<<< HEAD
-=======
 
+  /**
+   * Application lifecycle listener that logs when the service has started.
+   *
+   * @return ApplicationListener for ApplicationStartedEvent
+   */
   @Bean
   public ApplicationListener<ApplicationStartedEvent> startupListener() {
     return event -> {
@@ -106,6 +102,11 @@ public class OrderServiceApplication {
     };
   }
 
+  /**
+   * Application lifecycle listener that logs when the service is ready to accept requests.
+   *
+   * @return ApplicationListener for ApplicationReadyEvent
+   */
   @Bean
   public ApplicationListener<ApplicationReadyEvent> readyListener() {
     return event -> {
@@ -113,6 +114,12 @@ public class OrderServiceApplication {
     };
   }
 
+  /**
+   * Configures the gRPC server with optimized settings for 8GB RAM systems. Sets up thread pools,
+   * message size limits, and connection settings.
+   *
+   * @return GrpcServerConfigurer for customizing the gRPC server
+   */
   @Bean
   public GrpcServerConfigurer grpcServerConfigurer() {
     return builder -> {
@@ -127,5 +134,4 @@ public class OrderServiceApplication {
       }
     };
   }
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 }

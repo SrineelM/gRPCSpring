@@ -1,11 +1,6 @@
 package com.poc.grpc.order.entity;
 
 import jakarta.persistence.*;
-<<<<<<< HEAD
-import java.math.BigDecimal;
-import java.util.UUID;
-import lombok.*;
-=======
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +12,6 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 
 /**
  * Order Item Entity
@@ -25,10 +19,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
  * <p>This entity represents an individual item within an order. It maintains a bi-directional
  * relationship with the Order entity and stores product details at the time of order creation.
  *
-<<<<<<< HEAD
- * <p>Key Features: 1. Bi-directional relationship with Order 2. Immutable product information 3.
- * Price and quantity tracking
-=======
  * <p>Key Features:
  *
  * <ul>
@@ -39,7 +29,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
  *   <li>Optimistic locking
  *   <li>Audit timestamps
  * </ul>
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
  *
  * <p>Database Table: order_items Indexes: - Primary Key: id (UUID) - Foreign Key: order_id
  * (references orders.id)
@@ -51,10 +40,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-<<<<<<< HEAD
-=======
 @EntityListeners(AuditingEntityListener.class)
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 public class OrderItem {
 
   @Id
@@ -65,20 +51,6 @@ public class OrderItem {
   @JoinColumn(name = "order_id", nullable = false)
   private Order order;
 
-<<<<<<< HEAD
-  @Column(name = "product_id", nullable = false)
-  private String productId;
-
-  @Column(nullable = false)
-  private String name;
-
-  @Column(nullable = false)
-  private Integer quantity;
-
-  @Column(nullable = false, precision = 19, scale = 2)
-  private BigDecimal price;
-
-=======
   @NotBlank(message = "Product ID is required")
   @Column(name = "product_id", nullable = false)
   private String productId;
@@ -107,7 +79,6 @@ public class OrderItem {
   @Column(name = "updated_at")
   private LocalDateTime updatedAt;
 
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   /**
    * Calculates the total price for this item. Total is quantity multiplied by unit price.
    *
@@ -122,17 +93,12 @@ public class OrderItem {
    *
    * @param newQuantity The new quantity to set
    * @return The difference (positive if increased, negative if decreased)
-<<<<<<< HEAD
-   */
-  public int updateQuantity(int newQuantity) {
-=======
    * @throws IllegalArgumentException if the new quantity is less than 1
    */
   public int updateQuantity(int newQuantity) {
     if (newQuantity < 1) {
       throw new IllegalArgumentException("Quantity must be at least 1");
     }
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
     int difference = newQuantity - this.quantity;
     this.quantity = newQuantity;
     return difference;
@@ -144,17 +110,12 @@ public class OrderItem {
    *
    * @param newQuantity The quantity for the new item
    * @return A new OrderItem with the same details but different quantity
-<<<<<<< HEAD
-   */
-  public OrderItem copyWithQuantity(int newQuantity) {
-=======
    * @throws IllegalArgumentException if the new quantity is less than 1
    */
   public OrderItem copyWithQuantity(int newQuantity) {
     if (newQuantity < 1) {
       throw new IllegalArgumentException("Quantity must be at least 1");
     }
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
     return OrderItem.builder()
         .productId(this.productId)
         .name(this.name)
@@ -162,8 +123,6 @@ public class OrderItem {
         .price(this.price)
         .build();
   }
-<<<<<<< HEAD
-=======
 
   /**
    * Checks if this item is for the same product as another item. This can be used to merge items
@@ -188,5 +147,4 @@ public class OrderItem {
     }
     this.quantity += other.getQuantity();
   }
->>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 }

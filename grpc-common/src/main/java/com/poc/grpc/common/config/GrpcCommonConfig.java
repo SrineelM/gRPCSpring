@@ -39,13 +39,12 @@ public class GrpcCommonConfig {
    * <p>This interceptor is applied before authentication to ensure correlation IDs are available
    * for logging authentication events.
    *
-   * @param correlationIdInterceptor the correlation ID interceptor bean
    * @return the interceptor instance for global registration
    */
+  @org.springframework.context.annotation.Bean
   @GrpcGlobalServerInterceptor
   @Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
-  public CorrelationIdInterceptor correlationIdInterceptor(
-      CorrelationIdInterceptor correlationIdInterceptor) {
-    return correlationIdInterceptor;
+  public CorrelationIdInterceptor correlationIdInterceptor() {
+    return new CorrelationIdInterceptor();
   }
 }

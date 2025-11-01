@@ -5,7 +5,6 @@ import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
-import org.springframework.stereotype.Component;
 
 /**
  * gRPC server interceptor that adds correlation ID tracking for distributed tracing.
@@ -26,7 +25,6 @@ import org.springframework.stereotype.Component;
  * @since 1.0.0
  */
 @Slf4j
-@Component
 public class CorrelationIdInterceptor implements ServerInterceptor {
 
   /** Metadata key for correlation ID in gRPC headers. */

@@ -124,21 +124,10 @@ public class DefaultJwtServerInterceptor extends AbstractJwtServerInterceptor {
         if (jwt == null || jwt.isEmpty()) {
           missingTokens.increment();
           meterRegistry.counter("auth.failures", "reason", "missing_token").increment();
-        } else if (!jwtUtil.validateToken(jwt)) {
-          // Check if token is expired or otherwise invalid
-          try {
-            if (jwtUtil.isTokenExpired(jwt)) {
-              expiredTokens.increment();
-              meterRegistry.counter("auth.failures", "reason", "expired_token").increment();
-            } else {
-              invalidTokens.increment();
-              meterRegistry.counter("auth.failures", "reason", "invalid_token").increment();
-            }
-          } catch (Exception e) {
-            // If we can't parse the token at all, it's invalid
-            invalidTokens.increment();
-            meterRegistry.counter("auth.failures", "reason", "parse_error").increment();
-          }
+        } else {
+          // Token validation failed - could be expired or invalid
+          invalidTokens.increment();
+          meterRegistry.counter("auth.failures", "reason", "invalid_or_expired").increment();
         }
 
         // Track failed attempts for rate limiting
