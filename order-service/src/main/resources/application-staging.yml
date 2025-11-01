@@ -1,0 +1,167 @@
+# =================================================================================================
+# Staging Environment Configuration
+#
+# This file contains the configuration for the 'staging' profile. Staging should be a
+# production-like environment used for final testing before deployment.
+# Configuration values are primarily driven by environment variables for security and flexibility.
+# =================================================================================================
+
+spring:
+  config:
+    activate:
+      # This configuration is activated when the 'staging' profile is active.
+      on-profile: staging
+
+  # ===============================================================================================
+  # Database Configuration
+  # ===============================================================================================
+  datasource:
+    # The JDBC URL for the PostgreSQL database. Host, port, and database name are expected
+    # to be provided via environment variables, with sensible defaults for a staging environment.
+    url: jdbc:postgresql://${DB_HOST:staging-db-host}:${DB_PORT:5432}/${DB_NAME:order_db_staging}
+    # Database credentials must be provided via environment variables.
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    # HikariCP connection pool settings, tuned for a staging environment.
+    hikari:
+      maximum-pool-size: 25
+      minimum-idle: 8
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+
+  # ===============================================================================================
+  # JPA & Hibernate Configuration
+  # ===============================================================================================
+  jpa:
+    hibernate:
+      # 'validate' ensures the Hibernate entity model matches the database schema without making
+      # any changes. This is a safe setting for staging to catch schema mismatches early.
+      ddl-auto: validate
+    # SQL logging is disabled for cleaner logs in staging.
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Enable JDBC batching for improved performance on bulk operations.
+        jdbc:
+          batch_size: 50
+
+  # ===============================================================================================
+  # Redis Configuration
+  # ===============================================================================================
+  data:
+    redis:
+      # Redis connection details are provided by environment variables.
+      host: ${REDIS_HOST:staging-redis-host}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD} # Password must be provided via environment variable.
+      timeout: 2000
+      # SSL should be enabled in staging to mirror production, but can be overridden.
+      ssl: ${REDIS_SSL:false}
+      # Lettuce connection pool settings.
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+# =================================================================================================
+# gRPC Configuration
+# =================================================================================================
+grpc:
+  server:
+    port: 9090
+    # Server reflection is disabled for security and performance.
+    enable-reflection: false
+    # gRPC security is enabled.
+    security:
+      enabled: true
+  client:
+    user-service:
+      # The address for the user-service, using DNS for service discovery within a Kubernetes cluster.
+      address: static://user-service:9091
+      negotiation-type: PLAINTEXT
+
+# =================================================================================================
+# Security Configuration
+# =================================================================================================
+security:
+  cors:
+    # CORS configuration to allow requests from the staging frontend.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://staging.example.com}
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "Authorization,Content-Type,X-Requested-With"
+    allow-credentials: true
+  rate-limit:
+    # Enable rate limiting to protect the service from abuse.
+    enabled: true
+    max-requests-per-minute: 120
+
+# =================================================================================================
+# Resilience4j Configuration (Circuit Breaker)
+# =================================================================================================
+resilience4j:
+  circuitbreaker:
+    # Configuration for circuit breakers to handle failures in downstream services.
+    instances:
+      orderService:
+        failure-rate-threshold: 35 # % of failures to open the circuit.
+        minimum-number-of-calls: 20 # Min calls before calculating failure rate.
+      userService:
+        failure-rate-threshold: 30
+        minimum-number-of-calls: 15
+
+# =================================================================================================
+# Monitoring & Management (Spring Boot Actuator)
+# =================================================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose specific actuator endpoints for monitoring.
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      # Show detailed health information only to authorized users.
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        # Enable the Prometheus endpoint for scraping metrics.
+        enabled: true
+        step: 15s # Scrape interval.
+
+# =================================================================================================
+# Logging Configuration
+# =================================================================================================
+logging:
+  level:
+    # Set log levels for different packages. INFO for our app, WARN for noisier frameworks.
+    com.poc.grpc: INFO
+    org.springframework.security: WARN
+    root: WARN
+  file:
+    # Configure log file rotation for the staging environment.
+    name: /var/log/order-service/order-service-staging.log
+    max-size: 100MB
+    max-history: 60
+
+# =================================================================================================
+# Application-Specific Configuration
+# =================================================================================================
+app:
+  jwt:
+    # !!! SECURITY WARNING !!!
+    # The JWT secret is hardcoded. In a real staging or production environment, this MUST be
+    # externalized using environment variables, a secrets management tool (like Vault),
+    # or Spring Cloud Config with encrypted properties.
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    # Token expiration time (24 hours).
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+server:
+  port: 8080

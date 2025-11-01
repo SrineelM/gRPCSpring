@@ -1,0 +1,75 @@
+plugins {
+    id 'org.springframework.boot'
+}
+
+description = 'User Service - Handles user registration, authentication, and profile management'
+
+dependencies {
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "org.springframework.boot:spring-boot-starter-data-jpa"
+    implementation "org.springframework.boot:spring-boot-starter-security"
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "org.springframework.boot:spring-boot-starter-data-redis"
+    implementation "org.springframework.boot:spring-boot-starter-validation"
+    implementation "org.springframework.boot:spring-boot-starter-mail"
+    implementation "org.springframework.boot:spring-boot-starter-thymeleaf"
+
+    // User module specific
+    implementation 'org.passay:passay:1.6.4'
+    implementation 'commons-validator:commons-validator:1.8.0'
+
+    // gRPC Spring Boot starter
+    implementation "net.devh:grpc-server-spring-boot-starter"
+    implementation "net.devh:grpc-client-spring-boot-starter"
+
+    // JWT (already managed)
+    implementation "io.jsonwebtoken:jjwt-api:${jwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:${jwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jwtVersion}"
+
+    // Project shared code
+    implementation project(':grpc-common')
+
+    // Development runtime
+    runtimeOnly 'com.h2database:h2'
+
+    // Tests
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'com.icegreen:greenmail-junit5:2.0.1' // for email unit tests
+    testImplementation 'org.testcontainers:postgresql'
+
+    // Lombok for annotations like @Slf4j, @RequiredArgsConstructor, @Builder, etc.
+    implementation "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    // Resilience4j for circuit breaker, retry, timelimiter annotations
+    implementation "io.github.resilience4j:resilience4j-circuitbreaker:2.2.0"
+    implementation "io.github.resilience4j:resilience4j-retry:2.2.0"
+    implementation "io.github.resilience4j:resilience4j-timelimiter:2.2.0"
+    implementation "io.github.resilience4j:resilience4j-annotations:2.2.0"
+}
+
+springBoot {
+    buildInfo()
+    mainClass = 'com.poc.grpc.user.UserServiceApplication'
+}
+
+tasks.register('buildDockerImage', Exec) {
+    dependsOn bootJar
+    group = 'docker'
+    description = 'Builds Docker image for user service'
+    commandLine 'docker', 'build', '-t', "${project.name}:${version}", '.'
+}
+
+tasks.register('runLocal', JavaExec) {
+    group = 'application'
+    description = 'Run user service locally'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.poc.grpc.user.UserServiceApplication'
+    args = ['--spring.profiles.active=local']
+    jvmArgs = [
+        '-Xmx512m'
+    ]
+}

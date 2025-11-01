@@ -1,0 +1,168 @@
+# ======================================================================================================================
+# PRODUCTION PROFILE CONFIGURATION
+#
+# This configuration is optimized for the 'prod' environment. It prioritizes security, performance, and reliability.
+# Key features include:
+# - Externalized secrets and sensitive configurations (e.g., database credentials, JWT secrets) via environment variables.
+# - Use of PostgreSQL as the production database with a tuned connection pool.
+# - Disabled automatic schema generation (ddl-auto: none) to prevent accidental data loss. Schema management must be
+#   handled by a dedicated migration tool like Flyway or Liquibase.
+# - Hardened security settings, including mandatory TLS for gRPC, restricted CORS policies, and rate limiting.
+# - Disabled gRPC reflection and limited actuator endpoint exposure to reduce attack surface.
+# - Structured JSON logging for better observability and integration with log management systems.
+# - Graceful shutdown enabled to ensure no requests are lost during deployments.
+#
+# CRITICAL: All placeholders like ${DB_HOST} or ${JWT_SECRET} MUST be replaced with actual values from a secure
+#           source in the deployment environment (e.g., Kubernetes Secrets, Vault, or environment variables).
+# ======================================================================================================================
+
+# Production environment configuration. Tuned for performance, security, and reliability.
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # Production Database Configuration. All sensitive values must be externalized.
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:user_db_prod} # Standardized DB name
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # Tuned HikariCP settings for higher load.
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  # Production JPA Configuration.
+  jpa:
+    hibernate:
+      # 'none' is the only safe option for production. Schema changes MUST be handled by a dedicated
+      # migration tool like Flyway or Liquibase to ensure controlled, versioned updates.
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Performance optimizations for production.
+        jdbc:
+          batch_size: 100
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+  # Production Redis Configuration, assuming a cluster setup for high availability.
+  data:
+    redis:
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES} # e.g., "host1:6379,host2:6379"
+      password: ${REDIS_PASSWORD}
+      timeout: 2000
+      ssl: true # Enable SSL for secure communication with Redis.
+      lettuce:
+        pool:
+          max-active: 50
+        cluster:
+          refresh:
+            adaptive: true # Helps client adapt to cluster topology changes.
+            period: 30s
+
+# Production gRPC Configuration with mandatory TLS.
+grpc:
+  server:
+    enable-reflection: false # Reflection is a security risk and should be disabled in prod.
+    security:
+      enabled: true
+      cert-chain: ${GRPC_CERT_CHAIN:/etc/ssl/certs/server.crt}
+      private-key: ${GRPC_PRIVATE_KEY:/etc/ssl/private/server.key}
+  client:
+    user-service:
+      address: dns:///user-service.prod-namespace.svc.cluster.local:9090
+      negotiation-type: tls # TLS is mandatory for secure inter-service communication.
+      security:
+        cert-chain: ${GRPC_CLIENT_CERT_CHAIN:/etc/ssl/certs/client.crt}
+        private-key: ${GRPC_CLIENT_PRIVATE_KEY:/etc/ssl/private/client.key}
+        trust-cert-collection: ${GRPC_TRUST_CERT:/etc/ssl/certs/ca.crt}
+
+# Hardened Production Security Configuration.
+security:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://app.example.com}
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "Authorization,Content-Type,X-Requested-With,X-Correlation-ID"
+    allow-credentials: true
+    max-age: 3600 # Cache pre-flight responses for 1 hour.
+  rate-limit:
+    enabled: true
+    max-requests-per-minute: 200
+    max-requests-per-hour: 5000
+  jwt:
+    enabled: true
+
+# Stricter Resilience4j settings for production to fail fast and protect the system.
+resilience4j:
+  circuitbreaker:
+    instances:
+      orderService:
+        failure-rate-threshold: 25
+        minimum-number-of-calls: 30
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 3s
+      userService:
+        failure-rate-threshold: 20
+        minimum-number-of-calls: 25
+        slow-call-duration-threshold: 1s
+
+# Production Monitoring.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus # Expose only a safe subset of endpoints.
+  endpoint:
+    health:
+      show-details: never # Do not expose sensitive health details publicly.
+      cache:
+        time-to-live: 10s # Cache health status to reduce load.
+  security:
+    enabled: true # Secure the actuator endpoints.
+    roles: ADMIN # Only users with ADMIN role can access sensitive actuator data.
+
+# Production Logging.
+logging:
+  file:
+    name: /var/log/user-service/user-service-prod.log
+    max-size: 100MB
+    max-history: 60
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId}/%X{spanId}] [%thread] %-5level %logger{36} - %msg%n"
+  level:
+    com.poc.grpc: INFO
+    org.springframework.security: WARN
+    io.grpc: WARN
+    org.hibernate.SQL: WARN
+    root: WARN
+    org.springframework: WARN
+
+# Production Server Configuration.
+server:
+  port: 8080
+  # Enable graceful shutdown to allow in-flight requests to complete before the app stops.
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 20000
+    max-connections: 8192
+    threads:
+      max: 200
+      min-spare: 10
+
+app:
+  jwt:
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform

@@ -1,0 +1,113 @@
+# ======================================================================================================================
+# LOCAL PROFILE CONFIGURATION - USER SERVICE
+#
+# This configuration file is specific to the 'local' Spring profile for the User Service. It is intended for
+# development on a local machine. It uses an in-memory H2 database, disables certain security features for ease of
+# testing, and enables verbose logging for debugging purposes. This file should not be used in production.
+# ======================================================================================================================
+
+# Local development environment configuration.
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  # Use H2 in-memory database for easy setup and teardown.
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    platform: h2
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2                    # ADDED: Better connection pool configuration
+      connection-timeout: 20000          # ADDED: Connection timeout
+
+  # Enable H2 web console for easy database inspection at /h2-console.
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # JPA settings for local development.
+  jpa:
+    hibernate:
+      # 'update' is safer than 'create-drop' for development
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Connect to a local Redis instance.
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 2000
+      lettuce:                           # ADDED: Redis connection pool configuration
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+
+# gRPC settings for local development - USER SERVICE
+grpc:
+  server:
+    port: 9091                           # User service runs on 9091
+    enable-reflection: true
+    health-service-enabled: false        # Explicitly disable health service
+  client:
+    order-service:                       # User service can call order service if needed
+      address: static://localhost:9090   # Order service gRPC port
+      negotiation-type: plaintext
+      deadline: 10s                      # Connection timeout
+      keepAliveTime: 30s                 # Keep alive settings
+      keepAliveTimeout: 5s
+
+# Relaxed security for local development.
+security:
+  cors:
+    allowed-origins: "*"
+    allowed-methods: "*"
+    allowed-headers: "*"
+  rate-limit:
+    enabled: false
+
+# Expose all actuator endpoints for easy debugging and monitoring locally.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  security:
+    enabled: false
+
+# Verbose logging for local debugging.
+logging:
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+  level:
+    com.poc.grpc: DEBUG
+    org.springframework.security: DEBUG
+    io.grpc: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: INFO
+    org.springframework: INFO
+
+app:
+  jwt:
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+
+server:
+  port: 8081                             # KEPT: HTTP server port for user service

@@ -1,0 +1,107 @@
+/**
+ * Proto definitions for the User Service
+ * 
+ * This file defines:
+ * 1. User-related message types for data transfer
+ * 2. gRPC service interface for user management
+ * 3. Request/Response structures for all operations
+ * 
+ * Note: Changes to this file require recompilation of gRPC stubs
+ */
+
+syntax = "proto3";
+
+package com.poc.grpc.user;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option java_package = "com.poc.grpc.user";
+option java_outer_classname = "UserProto";
+option java_multiple_files = true;
+
+// User service definition
+service UserService {
+    // Creates a new user account with profile
+    rpc CreateUser (CreateUserRequest) returns (UserResponse);
+    
+    // Retrieves user details by ID
+    rpc GetUser (GetUserRequest) returns (UserResponse);
+    
+    // Updates an existing user's profile
+    rpc UpdateUserProfile (UpdateUserProfileRequest) returns (UserResponse);
+    
+    // Validates user status (used by other services)
+    rpc ValidateUser (ValidateUserRequest) returns (ValidateUserResponse);
+    
+    // Health check endpoint
+    rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Request message for user creation
+message CreateUserRequest {
+    string username = 1;        // Unique username
+    string email = 2;          // User's email address
+    string password = 3;       // Password (will be encrypted)
+    string first_name = 4;     // User's first name
+    string last_name = 5;      // User's last name
+    string phone_number = 6;   // Optional phone number
+    google.protobuf.Timestamp date_of_birth = 7;  // Optional date of birth
+}
+
+// Retrieves user details by ID
+message GetUserRequest {
+  string user_id = 1;
+}
+
+// Updates an existing user's profile
+message UpdateUserProfileRequest {
+  string user_id = 1;                  // must match JWT subject or require admin
+  string first_name = 2;
+  string last_name = 3;
+  string phone_number = 4;
+  google.protobuf.Timestamp date_of_birth = 5;
+}
+
+// Validates user status (used by other services)
+message ValidateUserRequest {
+  string user_id = 1;
+}
+
+// Response for user validation
+message ValidateUserResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string message = 3;
+}
+
+// Response for user operations
+message UserResponse {
+  string user_id = 1;
+  string username = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  bool is_active = 8;
+  bool is_email_verified = 9;
+  int32 login_attempts = 10;
+  string phone_number = 11;
+  google.protobuf.Timestamp date_of_birth = 12;
+  string message = 13;
+}
+
+// Health check request
+message HealthCheckRequest {}
+
+// Health check response
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  ServingStatus status = 1;
+  string message = 2;
+}

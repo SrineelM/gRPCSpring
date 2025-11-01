@@ -1,0 +1,118 @@
+/**
+ * Proto definitions for the Order Service
+ * 
+ * This file defines:
+ * 1. Order-related message types for data transfer
+ * 2. gRPC service interface for order management
+ * 3. Request/Response structures for all operations
+ * 
+ * Integration Points:
+ * - Requires User Service for user validation
+ * - Uses JWT for authentication
+ * - Supports distributed tracing
+ */
+
+syntax = "proto3";
+
+package com.poc.grpc.order;
+
+option java_multiple_files = true;
+option java_package = "com.poc.grpc.order";
+option java_outer_classname = "OrderProto";
+
+import "google/protobuf/timestamp.proto";
+
+// Order service definition
+service OrderService {
+    // Creates a new order for a user
+    rpc CreateOrder (CreateOrderRequest) returns (OrderResponse);
+    
+    // Retrieves order details by ID
+    rpc GetOrder (GetOrderRequest) returns (OrderResponse);
+    
+    // Lists orders for a specific user
+    rpc ListUserOrders (ListUserOrdersRequest) returns (ListUserOrdersResponse);
+    
+    // Updates order status (e.g., cancel, complete)
+    rpc UpdateOrderStatus (UpdateOrderStatusRequest) returns (OrderResponse);
+    
+    // Health check endpoint
+    rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Request message for order creation
+message CreateOrderRequest {
+    string user_id = 1;           // ID of the user placing the order
+    repeated OrderItem items = 2;  // List of items in the order
+    string shipping_address = 3;   // Delivery address
+    string payment_method = 4;     // Payment method identifier
+}
+
+// Order item in a request
+message OrderItem {
+    string product_id = 1;    // Product identifier
+    string name = 2;          // Product name
+    int32 quantity = 3;       // Quantity ordered
+    double price = 4;         // Price per unit
+}
+
+// Request to get a specific order
+message GetOrderRequest {
+    string order_id = 1;      // Order identifier
+}
+
+// Request to list orders for a user
+message ListUserOrdersRequest {
+    string user_id = 1;       // User identifier
+    int32 page_size = 2;      // Number of items per page
+    int32 page_number = 3;    // Page number (0-based)
+}
+
+// Response for listing orders
+message ListUserOrdersResponse {
+    repeated OrderResponse orders = 1;  // List of orders
+    int32 total_pages = 2;             // Total number of pages
+    int32 total_items = 3;             // Total number of items
+    int32 current_page = 4;            // Current page number
+}
+
+// Request to update order status
+message UpdateOrderStatusRequest {
+    string order_id = 1;      // Order identifier
+    string status = 2;        // New status value
+}
+
+// Response message for order operations
+message OrderResponse {
+    string order_id = 1;                          // Order identifier
+    string user_id = 2;                           // User identifier
+    string status = 3;                            // Order status
+    double total_amount = 4;                      // Total order amount
+    repeated OrderItemResponse items = 5;         // Order items
+    string shipping_address = 6;                  // Delivery address
+    string payment_method = 7;                    // Payment method used
+    string created_at = 8;                        // Creation timestamp
+    string updated_at = 9;                        // Last update timestamp
+}
+
+// Order item in a response
+message OrderItemResponse {
+    string product_id = 1;    // Product identifier
+    string name = 2;          // Product name
+    int32 quantity = 3;       // Quantity ordered
+    double price = 4;         // Price per unit
+}
+
+// Health check request
+message HealthCheckRequest {
+}
+
+// Health check response
+message HealthCheckResponse {
+    enum Status {
+        UNKNOWN = 0;
+        SERVING = 1;
+        NOT_SERVING = 2;
+    }
+    Status status = 1;
+}

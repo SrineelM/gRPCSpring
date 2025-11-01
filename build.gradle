@@ -1,0 +1,76 @@
+plugins {
+    id 'base'
+    id 'org.springframework.boot' version "${springBootVersion}" apply false
+    id 'io.spring.dependency-management' version '1.1.4' apply false
+    id 'com.google.protobuf' version '0.9.4' apply false
+    id 'com.diffplug.spotless' version '6.25.0' apply false
+}
+
+ext {
+    springBootVersion = "${springBootVersion}"
+    grpcVersion = "${grpcVersion}"
+    protobufVersion = "${protobufVersion}"
+    jwtVersion = "${jwtVersion}"
+    lombokVersion = "${lombokVersion}"
+}
+
+allprojects {
+    group = 'com.poc.grpc'
+    version = '1.0.0-SNAPSHOT'
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'idea'
+    apply plugin: 'com.diffplug.spotless'
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    spotless {
+        java {
+            googleJavaFormat()
+            target '**/*.java'
+        }
+    }
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+            mavenBom "io.grpc:grpc-bom:${grpcVersion}"
+        }
+        dependencies {
+            dependency "net.devh:grpc-server-spring-boot-starter:2.15.0.RELEASE"
+            dependency "net.devh:grpc-client-spring-boot-starter:2.15.0.RELEASE"
+            dependency "io.jsonwebtoken:jjwt-api:${jwtVersion}"
+            dependency "io.jsonwebtoken:jjwt-impl:${jwtVersion}"
+            dependency "io.jsonwebtoken:jjwt-jackson:${jwtVersion}"
+            dependency "com.google.protobuf:protobuf-java-util:${protobufVersion}"
+            dependency "org.springframework.statemachine:spring-statemachine-core:${statemachineVersion}"
+        }
+    }
+
+    dependencies {
+        implementation "org.slf4j:slf4j-api:${slf4jVersion}"
+        implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs += ['-parameters']
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        testLogging {
+            events "passed", "skipped", "failed"
+            exceptionFormat = 'full'
+        }
+        jvmArgs = ['-Xmx1g', '-XX:+UseG1GC']
+    }
+    tasks.named('build').configure {
+        dependsOn tasks.named('spotlessApply')
+    }
+}

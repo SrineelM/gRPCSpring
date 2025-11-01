@@ -1,0 +1,127 @@
+# ======================================================================================================================
+# QA (QUALITY ASSURANCE) PROFILE CONFIGURATION
+#
+# This configuration is for the 'qa' Spring profile. It is designed to be a stable environment for testing that mirrors
+# the production setup as closely as possible. The goal is to identify issues before they reach production.
+# Key characteristics include:
+# - Using a dedicated QA database (PostgreSQL) with schema validation enabled (`ddl-auto: validate`) to ensure
+#   consistency between the application and the database schema.
+# - Externalized configurations for database credentials and other sensitive data, similar to production.
+# - Security features like TLS for gRPC, CORS, and rate limiting are enabled to test them thoroughly.
+# - Logging levels are typically set to INFO or WARN to monitor the application's behavior under test scenarios.
+# ======================================================================================================================
+
+# Quality Assurance environment configuration. Designed to closely mirror production.
+spring:
+  config:
+    activate:
+      on-profile: qa
+
+  # Database Configuration, using externalized variables.
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:qa-db-host}:${DB_PORT:5432}/${DB_NAME:user_db_qa} # Standardized DB name
+    username: ${DB_USER:qa_user}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+  # JPA Configuration for QA.
+  jpa:
+    hibernate:
+      # 'validate' ensures that the deployed application version matches the database schema.
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Redis Configuration for QA.
+  data:
+    redis:
+      host: ${REDIS_HOST:qa-redis-host}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000
+      lettuce:
+        pool:
+          max-active: 15
+
+# gRPC Configuration for QA.
+grpc:
+  server:
+    port: 9091
+    enable-reflection: false # Reflection disabled, same as production.
+    security:
+      enabled: true # Server-side TLS should be enabled.
+  client:
+    user-service:
+      address: dns:///user-service.qa-namespace.svc.cluster.local:9090
+      # Use TLS to match production, helping to catch certificate/TLS issues early.
+      negotiation-type: tls
+      # This block assumes QA environment has access to necessary client certificates.
+      security:
+        cert-chain: ${GRPC_CLIENT_CERT_CHAIN:/etc/ssl/certs/client.crt}
+        private-key: ${GRPC_CLIENT_PRIVATE_KEY:/etc/ssl/private/client.key}
+        trust-cert-collection: ${GRPC_TRUST_CERT:/etc/ssl/certs/ca.crt}
+    order-service:
+      address: static://order-service:9090
+      negotiation-type: PLAINTEXT
+
+# Security Configuration for QA.
+security:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://qa-frontend.example.com}
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "Authorization,Content-Type,X-Requested-With"
+    allow-credentials: true
+  rate-limit:
+    enabled: true
+    max-requests-per-minute: 100
+
+# Resilience4j settings tuned for the QA environment.
+resilience4j:
+  circuitbreaker:
+    instances:
+      orderService:
+        failure-rate-threshold: 40
+        minimum-number-of-calls: 15
+      userService:
+        failure-rate-threshold: 35
+        minimum-number-of-calls: 10
+
+# Monitoring Configuration for QA.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Logging Configuration for QA.
+logging:
+  level:
+    com.poc.grpc: INFO
+    org.springframework.security: WARN
+    root: WARN
+  file:
+    # Standardized log path and name.
+    name: /var/log/user-service/user-service-qa.log
+    max-size: 100MB
+    max-history: 30
+
+app:
+  jwt:
+    secret: "c3VwZXJzZWNyZXRrZXlzdXBlcnNlY3JldGtleTEyMzQ1Ng=="
+    expiration-ms: 86400000
+    audience: my-ecommerce-app
+    issuer: my-ecommerce-platform
+
+server:
+  port: 8081
