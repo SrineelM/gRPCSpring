@@ -60,3 +60,20 @@ public class OrderServiceConfig {
     return () -> Optional.of("system");
   }
 }
+<<<<<<< HEAD
+=======
+
+/**
+ * Centralized configuration for Order Service.
+ *
+ * <p>Uses constructor injection and extracts constants for maintainability.
+ */
+final class OrderConstants {
+  private OrderConstants() {}
+
+  public static final String ORDER_TOPIC = "orders";
+  public static final int DEFAULT_PAGE_SIZE = 20;
+  public static final String ORDER_ID_PREFIX = "ORD-";
+  public static final long ORDER_EXPIRATION_DAYS = 30;
+}
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4

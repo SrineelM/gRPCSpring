@@ -1,10 +1,23 @@
 package com.poc.grpc.order;
 
 import java.util.Map;
+<<<<<<< HEAD
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
+=======
+import java.util.concurrent.Executors;
+import lombok.extern.slf4j.Slf4j;
+import net.devh.boot.grpc.server.serverfactory.GrpcServerConfigurer;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 
 /**
  * Order Service Application
@@ -83,4 +96,36 @@ public class OrderServiceApplication {
       log.error("Error while logging gRPC services", e);
     }
   }
+<<<<<<< HEAD
+=======
+
+  @Bean
+  public ApplicationListener<ApplicationStartedEvent> startupListener() {
+    return event -> {
+      log.info("Order service started successfully");
+    };
+  }
+
+  @Bean
+  public ApplicationListener<ApplicationReadyEvent> readyListener() {
+    return event -> {
+      log.info("Order service is ready to accept requests");
+    };
+  }
+
+  @Bean
+  public GrpcServerConfigurer grpcServerConfigurer() {
+    return builder -> {
+      if (builder instanceof io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder) {
+        int processorCount = Runtime.getRuntime().availableProcessors();
+        io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder nettyBuilder =
+            (io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder) builder;
+        nettyBuilder
+            .executor(Executors.newFixedThreadPool(processorCount * 2))
+            .maxConcurrentCallsPerConnection(100)
+            .maxInboundMessageSize(4 * 1024 * 1024);
+      }
+    };
+  }
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 }

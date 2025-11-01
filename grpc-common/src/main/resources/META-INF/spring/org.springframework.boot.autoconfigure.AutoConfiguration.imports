@@ -1,1 +1,6 @@
+<<<<<<< HEAD
 com.poc.grpc.common.config.GrpcClientConfig
+=======
+com.poc.grpc.common.config.GrpcClientConfig
+com.poc.grpc.common.security.config.JwtSecurityAutoConfiguration
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4

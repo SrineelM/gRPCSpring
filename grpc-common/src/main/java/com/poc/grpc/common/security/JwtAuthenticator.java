@@ -1,8 +1,21 @@
 package com.poc.grpc.common.security;
 
+<<<<<<< HEAD
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+=======
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,6 +31,17 @@ import org.springframework.stereotype.Component;
  * and the application's user data model. It combines the cryptographic validation from {@link
  * JwtUtil} with user retrieval from Spring Security's {@link UserDetailsService} to produce a
  * fully-formed {@code Authentication} object.
+<<<<<<< HEAD
+=======
+ *
+ * <p>Features:
+ *
+ * <ul>
+ *   <li>Caching of UserDetails to reduce database load
+ *   <li>Periodic cache cleanup to prevent memory leaks
+ *   <li>Comprehensive error handling and logging
+ * </ul>
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
  */
 @Slf4j
 @Component
@@ -31,6 +55,56 @@ public class JwtAuthenticator {
   // This decouples JWT logic from how user details (like roles and permissions) are stored.
   private final UserDetailsService userDetailsService;
 
+<<<<<<< HEAD
+=======
+  // Cache configuration properties
+  @Value("${app.security.user-cache.enabled:true}")
+  private boolean cacheEnabled;
+
+  @Value("${app.security.user-cache.expiration-ms:300000}")
+  private long cacheExpirationMs;
+
+  @Value("${app.security.user-cache.cleanup-interval-ms:600000}")
+  private long cacheCleanupIntervalMs;
+
+  // Cache implementation
+  private final ConcurrentHashMap<String, CachedUserDetails> userDetailsCache =
+      new ConcurrentHashMap<>();
+  private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
+  /** Initialize the cache cleanup scheduler. */
+  @PostConstruct
+  public void init() {
+    if (cacheEnabled) {
+      log.info("User details cache enabled with expiration of {}ms", cacheExpirationMs);
+      scheduler.scheduleAtFixedRate(
+          this::cleanupCache,
+          cacheCleanupIntervalMs,
+          cacheCleanupIntervalMs,
+          TimeUnit.MILLISECONDS);
+      log.info("Scheduled user details cache cleanup every {}ms", cacheCleanupIntervalMs);
+    } else {
+      log.info("User details cache disabled");
+    }
+  }
+
+  /** Shutdown the scheduler on application shutdown. */
+  @PreDestroy
+  public void shutdown() {
+    if (!scheduler.isShutdown()) {
+      scheduler.shutdown();
+      try {
+        if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+          scheduler.shutdownNow();
+        }
+      } catch (InterruptedException e) {
+        scheduler.shutdownNow();
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
+
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
   /**
    * Validates a JWT and constructs a Spring Security Authentication object if the token is valid
    * and corresponds to an existing user.
@@ -50,9 +124,14 @@ public class JwtAuthenticator {
       // Step 2: If the token is cryptographically valid, extract the username.
       String username = jwtUtil.getUsernameFromToken(jwt);
 
+<<<<<<< HEAD
       // Step 3: Load the user's details from the primary data source (e.g., a database).
       // This is a critical step to ensure the user still exists, is not locked, etc.
       UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+=======
+      // Step 3: Load the user's details, potentially from cache
+      UserDetails userDetails = loadUserDetails(username);
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 
       // Step 4: Create a fully authenticated token for the SecurityContext.
       // This is the standard object Spring Security uses to represent the current user's session.
@@ -72,4 +151,86 @@ public class JwtAuthenticator {
       return Optional.empty();
     }
   }
+<<<<<<< HEAD
+=======
+
+  /**
+   * Load user details, first checking the cache if enabled.
+   *
+   * @param username The username to load details for
+   * @return The UserDetails object
+   */
+  private UserDetails loadUserDetails(String username) {
+    if (!cacheEnabled) {
+      return userDetailsService.loadUserByUsername(username);
+    }
+
+    // Check cache first
+    CachedUserDetails cachedDetails = userDetailsCache.get(username);
+    if (cachedDetails != null && !cachedDetails.isExpired()) {
+      log.debug("User details for '{}' found in cache", username);
+      return cachedDetails.getUserDetails();
+    }
+
+    // Cache miss or expired, load from service
+    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+    // Cache the result
+    userDetailsCache.put(username, new CachedUserDetails(userDetails, cacheExpirationMs));
+    log.debug("User details for '{}' loaded from service and cached", username);
+
+    return userDetails;
+  }
+
+  /** Clear expired entries from the cache. */
+  private void cleanupCache() {
+    try {
+      int initialSize = userDetailsCache.size();
+
+      userDetailsCache.entrySet().removeIf(entry -> entry.getValue().isExpired());
+
+      int removed = initialSize - userDetailsCache.size();
+      if (removed > 0) {
+        log.info("Cleaned up {} expired user details from cache", removed);
+      }
+    } catch (Exception e) {
+      log.error("Error during user details cache cleanup", e);
+    }
+  }
+
+  /** Clear the entire cache. */
+  public void clearCache() {
+    userDetailsCache.clear();
+    log.info("User details cache cleared");
+  }
+
+  /**
+   * Remove a specific user from the cache.
+   *
+   * @param username The username to remove
+   */
+  public void removeFromCache(String username) {
+    userDetailsCache.remove(username);
+    log.debug("User '{}' removed from cache", username);
+  }
+
+  /** A container class for cached UserDetails with expiration. */
+  private static class CachedUserDetails {
+    private final UserDetails userDetails;
+    private final long expirationTime;
+
+    public CachedUserDetails(UserDetails userDetails, long cacheExpirationMs) {
+      this.userDetails = userDetails;
+      this.expirationTime = System.currentTimeMillis() + cacheExpirationMs;
+    }
+
+    public UserDetails getUserDetails() {
+      return userDetails;
+    }
+
+    public boolean isExpired() {
+      return System.currentTimeMillis() > expirationTime;
+    }
+  }
+>>>>>>> d6807baff8512f81dea1b7d4742df3013d4d23d4
 }
