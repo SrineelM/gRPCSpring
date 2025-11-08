@@ -14,13 +14,13 @@ import org.springframework.context.annotation.Configuration;
  * <p>Beginners: This is the recommended way to add a gRPC client interceptor in Spring Boot with
  * grpc-spring-boot-starter.
  */
-@Configuration
+@Configuration // Marks this class as a Spring configuration
 public class GrpcClientInterceptorConfig {
 
-  @Bean
-  @GrpcGlobalClientInterceptor
+  @Bean // Registers the bean in the Spring context
+  @GrpcGlobalClientInterceptor // Applies this interceptor to all gRPC clients
   public JwtValidationInterceptor jwtValidationInterceptor(JwtUtil jwtUtil) {
-    // Construct the interceptor with its dependency, not by injecting itself
+    // Return a new interceptor instance with JwtUtil dependency
     return new JwtValidationInterceptor(jwtUtil);
   }
 }

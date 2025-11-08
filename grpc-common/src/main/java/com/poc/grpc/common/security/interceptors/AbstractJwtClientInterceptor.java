@@ -30,18 +30,18 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public abstract class AbstractJwtClientInterceptor implements ClientInterceptor {
 
-  protected final JwtUtil jwtUtil;
-  protected final SecurityConfigurationProperties securityProperties;
+  protected final JwtUtil jwtUtil; // Utility for JWT operations
+  protected final SecurityConfigurationProperties securityProperties; // Security config
 
   private static final Metadata.Key<String> AUTHORIZATION_HEADER =
-      Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER); // Header for JWT
   private static final Metadata.Key<String> REQUEST_ID_HEADER =
-      Metadata.Key.of("X-Request-ID", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("X-Request-ID", Metadata.ASCII_STRING_MARSHALLER); // Header for request ID
   private static final Metadata.Key<String> CORRELATION_ID_HEADER =
-      Metadata.Key.of("X-Correlation-ID", Metadata.ASCII_STRING_MARSHALLER);
-  private static final String BEARER_PREFIX = "Bearer ";
+      Metadata.Key.of("X-Correlation-ID", Metadata.ASCII_STRING_MARSHALLER); // Header for correlation ID
+  private static final String BEARER_PREFIX = "Bearer "; // Prefix for JWT in header
 
-  // MDC constants
+  // MDC constants for logging context
   private static final String MDC_METHOD_NAME = "grpc.method";
   private static final String MDC_REQUEST_ID = "requestId";
   private static final String MDC_CORRELATION_ID = "correlationId";
@@ -52,10 +52,10 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
   public final <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
       MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
 
-    final String methodName = method.getFullMethodName();
-    final String requestId = UUID.randomUUID().toString();
+    final String methodName = method.getFullMethodName(); // Full gRPC method name
+    final String requestId = UUID.randomUUID().toString(); // Generate unique request ID
     final String correlationId =
-        MDC.get(MDC_CORRELATION_ID) != null ? MDC.get(MDC_CORRELATION_ID) : requestId;
+        MDC.get(MDC_CORRELATION_ID) != null ? MDC.get(MDC_CORRELATION_ID) : requestId; // Use existing or new correlation ID
 
     // Set up MDC context for this call
     MDC.put(MDC_METHOD_NAME, methodName);
@@ -65,13 +65,13 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
     try {
       log.debug("Intercepting outgoing gRPC call to method: {}", methodName);
 
-      SecurityLevel securityLevel = getSecurityLevel();
+      SecurityLevel securityLevel = getSecurityLevel(); // Determine security level
       MDC.put(MDC_SECURITY_LEVEL, securityLevel.name());
 
       // Extract user information for logging if available
       Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
       if (authentication != null && authentication.isAuthenticated()) {
-        MDC.put(MDC_USER_ID, authentication.getName());
+        MDC.put(MDC_USER_ID, authentication.getName()); // Add user ID to MDC
         log.debug(
             "Authenticated user: {} calling method: {}", authentication.getName(), methodName);
       }
@@ -80,17 +80,17 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
         case TOKEN_PROPAGATION:
           log.debug("Using TOKEN_PROPAGATION security level for method: {}", methodName);
           return handleTokenPropagation(
-              method, callOptions, next, methodName, requestId, correlationId);
+              method, callOptions, next, methodName, requestId, correlationId); // Add JWT to outgoing call
 
         case CLIENT_VALIDATION:
           log.debug("Using CLIENT_VALIDATION security level for method: {}", methodName);
           return handleClientValidation(
-              method, callOptions, next, methodName, requestId, correlationId);
+              method, callOptions, next, methodName, requestId, correlationId); // Validate JWT before sending
 
         case NONE:
           log.debug("No security applied for method: {}", methodName);
           return wrapCallForMetrics(
-              next.newCall(method, callOptions), methodName, requestId, correlationId);
+              next.newCall(method, callOptions), methodName, requestId, correlationId); // No security, just metrics
 
         default:
           log.warn("Unknown client security level: {}, no token handling applied", securityLevel);
@@ -119,11 +119,11 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
     return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(
         next.newCall(method, callOptions)) {
 
-      private long startTimeNanos;
+      private long startTimeNanos; // Track call start time
 
       @Override
       public void start(Listener<RespT> responseListener, Metadata headers) {
-        startTimeNanos = System.nanoTime();
+        startTimeNanos = System.nanoTime(); // Start timer
 
         try {
           // Add tracking headers
@@ -133,7 +133,7 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
           // Get and add JWT token
           String jwt = getOrGenerateToken();
           if (StringUtils.hasText(jwt)) {
-            headers.put(AUTHORIZATION_HEADER, BEARER_PREFIX + jwt);
+            headers.put(AUTHORIZATION_HEADER, BEARER_PREFIX + jwt); // Add JWT to header
             log.debug("JWT token added to outgoing call to method: {}", methodName);
           } else {
             log.debug("No JWT token available for outgoing call to method: {}", methodName);
@@ -166,11 +166,11 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
     return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(
         next.newCall(method, callOptions)) {
 
-      private long startTimeNanos;
+      private long startTimeNanos; // Track call start time
 
       @Override
       public void start(Listener<RespT> responseListener, Metadata headers) {
-        startTimeNanos = System.nanoTime();
+        startTimeNanos = System.nanoTime(); // Start timer
 
         try {
           // Add tracking headers
@@ -183,7 +183,7 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
           if (StringUtils.hasText(jwt)) {
             try {
               if (jwtUtil.validateToken(jwt)) {
-                headers.put(AUTHORIZATION_HEADER, BEARER_PREFIX + jwt);
+                headers.put(AUTHORIZATION_HEADER, BEARER_PREFIX + jwt); // Add valid JWT
                 log.debug("Valid JWT token added to outgoing call to method: {}", methodName);
               } else {
                 log.warn("Invalid JWT token, terminating call to method: {}", methodName);
@@ -227,11 +227,11 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
       ClientCall<ReqT, RespT> call, String methodName, String requestId, String correlationId) {
 
     return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(call) {
-      private long startTimeNanos;
+      private long startTimeNanos; // Track call start time
 
       @Override
       public void start(Listener<RespT> responseListener, Metadata headers) {
-        startTimeNanos = System.nanoTime();
+        startTimeNanos = System.nanoTime(); // Start timer
 
         // Add tracking headers
         headers.put(REQUEST_ID_HEADER, requestId);
@@ -253,7 +253,7 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
     return new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(listener) {
       @Override
       public void onClose(Status status, Metadata trailers) {
-        long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNanos);
+        long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNanos); // Calculate call duration
 
         if (status.isOk()) {
           log.debug("Call to {} completed successfully in {}ms", methodName, duration);
@@ -273,7 +273,7 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
 
   /** Get or generate JWT token for the current security context */
   private String getOrGenerateToken() {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication(); // Get current authentication
 
     if (authentication != null && authentication.isAuthenticated()) {
       try {
@@ -302,7 +302,7 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
    * custom security levels.
    */
   protected SecurityLevel getSecurityLevel() {
-    return securityProperties.getGrpc().getClientSecurityLevel();
+    return securityProperties.getGrpc().getClientSecurityLevel(); // Get security level from config
   }
 
   /**
@@ -313,6 +313,6 @@ public abstract class AbstractJwtClientInterceptor implements ClientInterceptor 
    * @return A custom JWT token, or null to use the default token generation
    */
   protected String customGenerateToken(Authentication authentication) {
-    return null;
+    return null; // Default: no custom token
   }
 }

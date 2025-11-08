@@ -26,77 +26,116 @@ spring:
   # Default Datasource Configuration (PostgreSQL)
   # These values are expected to be overridden in specific profiles.
   datasource:
+    # JDBC URL for the database connection. Uses environment variables with defaults.
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:userdb}
+    # Database username. Fetched from environment variable DB_USER, defaults to 'user'.
     username: ${DB_USER:user}
+    # Database password. Fetched from environment variable DB_PASSWORD, defaults to 'password'.
     password: ${DB_PASSWORD:password}
+    # The fully qualified name of the JDBC driver.
     driver-class-name: org.postgresql.Driver
     hikari:
+      # Maximum number of connections in the pool.
       maximum-pool-size: 20
+      # Minimum number of idle connections to maintain.
       minimum-idle: 5
+      # Maximum time (in ms) to wait for a connection from the pool.
       connection-timeout: 20000
+      # Maximum time (in ms) a connection can be idle in the pool.
       idle-timeout: 300000
+      # Maximum lifetime (in ms) of a connection in the pool.
       max-lifetime: 1200000
 
   # Default JPA Configuration
   jpa:
     hibernate:
       # 'validate' is a safer default than 'update'. It checks if the schema matches the entities without making changes.
-      # 'local' and 'dev' profiles can override this.
+      # 'local' and 'dev' profiles can override this to 'update' or 'create-drop'.
       ddl-auto: validate
+    # If true, logs all SQL statements. Useful for debugging, but should be false in production.
     show-sql: false
     properties:
       hibernate:
+        # The SQL dialect for Hibernate to use, specific to PostgreSQL.
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # Default Redis Configuration
   data:
     redis:
+      # Redis server host. Fetched from environment variable REDIS_HOST, defaults to 'localhost'.
       host: ${REDIS_HOST:localhost}
+      # Redis server port. Fetched from environment variable REDIS_PORT, defaults to '6379'.
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:} # Default to no password if env var is not set
+      # Redis password. Defaults to empty if REDIS_PASSWORD is not set.
+      password: ${REDIS_PASSWORD:}
+      # Redis database index.
       database: 0
+      # Connection timeout in milliseconds.
       timeout: 2000ms
       # Using the application name as a prefix prevents key collisions if Redis is shared.
       key-prefix: "${spring.application.name}"
       lettuce:
         pool:
+          # Maximum number of active connections in the pool.
           max-active: 15
+          # Maximum number of idle connections in the pool.
           max-idle: 8
+          # Minimum number of idle connections in the pool.
           min-idle: 2
   main:
+    # Allows a bean definition to be overridden with a subsequent definition, useful for profile-specific beans.
     allow-bean-definition-overriding: true
 
 # Common gRPC Server and Client settings
 grpc:
   server:
+    # Port for the gRPC server to listen on.
     port: 8091
-    enable-reflection: false # Reflection is useful for debugging but should be off in prod/qa.
+    # Reflection is useful for debugging (e.g., with grpcurl) but should be off in prod/qa for security.
+    enable-reflection: false
+    # Maximum message size the server can receive.
     max-inbound-message-size: 16MB
+    # Maximum metadata size the server can receive.
     max-inbound-metadata-size: 8KB
     # Keep-alive settings to maintain persistent connections and detect dead ones.
+    # Time to wait before sending a keep-alive ping on an idle connection.
     keep-alive-time: 30s
+    # Time to wait for a keep-alive ping response before closing the connection.
     keep-alive-timeout: 10s
+    # Allow keep-alive pings even if there are no active calls.
     permit-keep-alive-without-calls: true
   client:
     # Default client settings for the 'user-service' gRPC client.
     user-service:
+      # Enable keep-alive pings from the client to the server.
       enable-keep-alive: true
+      # Allow keep-alive pings even if there are no active calls.
       keep-alive-without-calls: true
+      # Time to wait before sending a keep-alive ping.
       keep-alive-time: 30s
+      # Time to wait for a keep-alive ping response.
       keep-alive-timeout: 10s
+      # Maximum message size the client can receive.
       max-inbound-message-size: 16MB
-      negotiation-type: plaintext # Default to plaintext; prod/qa must override to 'tls'.
+      # Default to plaintext for local development; prod/qa must override to 'tls' for secure communication.
+      negotiation-type: plaintext
 
 # Common Security Configurations
 app:
   jwt:
     # IMPORTANT: The JWT_SECRET must be externalized and be a long, high-entropy string.
+    # Secret key for signing JWTs. Fetched from environment variable JWT_SECRET.
     secret: ${JWT_SECRET:}
+    # Enable or disable JWT authentication.
     enabled: true
-    expiration: 86400000 # 24 hours
+    # JWT expiration time in milliseconds (e.g., 86400000 is 24 hours).
+    expiration: 86400000
+    # The 'aud' (audience) claim for the JWT, identifying the recipients that the JWT is intended for.
     audience: my-ecommerce-app
+    # The 'iss' (issuer) claim for the JWT, identifying the principal that issued the JWT.
     issuer: my-ecommerce-platform
   rate-limit:
+    # Maximum number of requests allowed per minute for rate limiting.
     max-requests-per-minute: 60
 
 # Default Resilience4j configurations for fault tolerance patterns.
@@ -104,41 +143,65 @@ resilience4j:
   circuitbreaker:
     configs:
       default:
+        # Type of sliding window for the circuit breaker ('COUNT_BASED' or 'TIME_BASED').
         sliding-window-type: TIME_BASED
+        # Size of the time-based or count-based sliding window.
         sliding-window-size: 30
+        # Minimum number of calls before the circuit breaker can calculate the failure rate.
         minimum-number-of-calls: 10
+        # Failure rate threshold in percentage. If it's exceeded, the circuit breaker opens.
         failure-rate-threshold: 50
+        # Slow call rate threshold in percentage. If the percentage of slow calls exceeds this, the circuit breaker opens.
         slow-call-rate-threshold: 70
+        # Duration threshold for a call to be considered slow.
         slow-call-duration-threshold: 2s
+        # Time the circuit breaker stays open before transitioning to half-open.
         wait-duration-in-open-state: 10s
+        # Number of permitted calls in the half-open state to test if the downstream service has recovered.
         permitted-number-of-calls-in-half-open-state: 5
+        # Automatically transition from open to half-open after the wait duration.
         automatic-transition-from-open-to-half-open-enabled: true
     instances:
+      # Specific configuration for the 'userService' circuit breaker.
       userService:
+        # Inherits from the 'default' configuration.
         base-config: default
+        # Overrides the failure rate threshold for this specific instance.
         failure-rate-threshold: 60
   retry:
     configs:
       default:
+        # Maximum number of retry attempts (including the initial call).
         max-attempts: 3
+        # Wait duration between retry attempts.
         wait-duration: 500ms
+        # Multiplier for exponential backoff between retries.
         exponential-backoff-multiplier: 2
+        # Exceptions that should trigger a retry.
         retry-exceptions:
           - java.io.IOException
           - java.util.concurrent.TimeoutException
           - io.grpc.StatusRuntimeException
     instances:
+      # Specific configuration for the 'userService' retry mechanism.
       userService:
+        # Inherits from the 'default' configuration.
         base-config: default
+        # Overrides the max attempts for this specific instance.
         max-attempts: 3
   timelimiter:
     configs:
       default:
+        # Timeout duration for a call.
         timeout-duration: 5s
+        # Whether to cancel the running future on timeout.
         cancel-running-future: true
     instances:
+      # Specific configuration for the 'userService' time limiter.
       userService:
+        # Inherits from the 'default' configuration.
         base-config: default
+        # Overrides the timeout duration for this specific instance.
         timeout-duration: 10s
 
 # Default Actuator/Monitoring settings
@@ -146,21 +209,26 @@ management:
   endpoints:
     web:
       exposure:
+        # Expose specific actuator endpoints over the web (health, info, metrics, prometheus).
         include: health,info,metrics,prometheus
   endpoint:
     health:
+      # When to show full health details ('never', 'when-authorized', 'always').
       show-details: when-authorized
   metrics:
     export:
       prometheus:
+        # Enable the /actuator/prometheus endpoint for scraping metrics with Prometheus.
         enabled: true
 
 # Default Logging Configuration
-
-# Allow bean definition overriding to resolve conflicts
 logging:
   level:
+    # Set the log level for the application's base package.
     com.poc.grpc: INFO
+    # Set the log level for the gRPC library to reduce noise.
     io.grpc: WARN
+    # Set the log level for Spring Security.
     org.springframework.security: WARN
+    # Set the log level to show Hibernate SQL statements.
     org.hibernate.SQL: INFO

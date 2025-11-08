@@ -15,76 +15,58 @@ import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * gRPC User Service Implementation
  *
- * <p>This service handles user management operations in the microservices architecture: 1. User
- * Registration: Creates new user accounts with profiles 2. Authentication: Validates credentials
- * and generates JWT tokens 3. Profile Management: Updates and retrieves user profiles 4. User
- * Validation: Verifies user status for other services
- *
- * <p>Features: - Transactional processing - Redis caching for performance - JWT authentication -
- * Password encryption - Circuit breaker pattern
- *
- * <p>Security: - BCrypt password hashing - Account locking after failed attempts - Email
- * verification tracking - JWT token management
+ * <p>This service handles user management operations like registration, validation, and profile
+ * management. It integrates with a database for persistence and Redis for caching.
  */
 @Slf4j
-@GrpcService
-@RequiredArgsConstructor
+@GrpcService // Marks this class as a gRPC service endpoint.
+@RequiredArgsConstructor // Lombok annotation for constructor-based dependency injection.
 public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
 
+  // Dependencies injected via constructor.
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final RedisTemplate<String, Object> redisTemplate;
 
+  /** Implements the createUser gRPC method to register a new user. */
   @Override
-  @Transactional
-  @CircuitBreaker(name = "userService", fallbackMethod = "createUserFallback")
+  @Transactional // Ensures the entire method runs within a single database transaction.
+  @CircuitBreaker(
+      name = "userService",
+      fallbackMethod = "createUserFallback") // Integrates Resilience4j circuit breaker.
   public void createUser(CreateUserRequest request, StreamObserver<UserResponse> responseObserver) {
     String username = request.getUsername();
     log.info("Starting user creation process for username: {}", username);
-    log.debug(
-        "Create user request details - Email: {}, FirstName: {}",
-        request.getEmail(),
-        request.getFirstName());
 
     try {
-      // Validate request
+      // 1. Validate incoming request data.
       validateCreateRequest(request);
-      log.debug("Request validation passed for username: {}", username);
 
-      // Check for existing user
+      // 2. Check if a user with the same username or email already exists.
       if (userRepository.existsByUsernameOrEmail(username, request.getEmail())) {
-        log.warn(
-            "User creation failed - Username or email already exists: {}, {}",
-            username,
-            request.getEmail());
         throw new UserAlreadyExistsException("User with username or email already exists");
       }
 
-      // Create user entity
+      // 3. Build and save the new user entity.
       User user = buildUserFromRequest(request);
-      log.debug("User entity built successfully for username: {}", username);
-
-      // Save user
       User savedUser = userRepository.save(user);
-      log.info(
-          "User created successfully - ID: {}, Username: {}",
-          savedUser.getId(),
-          savedUser.getUsername());
+      log.info("User created successfully - ID: {}", savedUser.getId());
 
-      // Cache user validation status
+      // 4. Cache the user's validation status in Redis for quick lookups.
       cacheUserValidationStatus(savedUser);
-      log.debug("User validation status cached for ID: {}", savedUser.getId());
 
-      // Build and send response
+      // 5. Build and send the gRPC response.
       UserResponse response = buildUserResponse(savedUser);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
 
     } catch (Exception e) {
+      // Handle any errors and notify the gRPC client.
       log.error("User creation failed for username: {} - Error: {}", username, e.getMessage(), e);
       responseObserver.onError(
           Status.INTERNAL
@@ -93,32 +75,33 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
     }
   }
 
+  /** Implements the validateUser gRPC method to check if a user is valid. */
   @Override
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true) // Optimizes the transaction for read operations.
   public void validateUser(
       ValidateUserRequest request, StreamObserver<ValidateUserResponse> responseObserver) {
     String userId = request.getUserId();
     log.debug("Validating user: {}", userId);
 
     try {
-      // Check cache first
+      // 1. First, attempt to retrieve the validation status from the Redis cache.
       String cacheKey = "user:valid:" + userId;
       Boolean cachedResult = (Boolean) redisTemplate.opsForValue().get(cacheKey);
 
       if (cachedResult != null) {
-        log.debug(
-            "User validation result found in cache for ID: {} - Valid: {}", userId, cachedResult);
+        // Cache hit: return the cached result immediately.
+        log.debug("User validation result found in cache for ID: {}", userId);
         sendValidationResponse(responseObserver, cachedResult);
         return;
       }
 
-      // Cache miss, check database
+      // 2. Cache miss: query the database to determine user validity.
       boolean isValid =
           userRepository.findById(UUID.fromString(userId)).map(User::isValidForOrder).orElse(false);
 
-      // Cache the result
+      // 3. Store the result in Redis to speed up subsequent requests.
       redisTemplate.opsForValue().set(cacheKey, isValid, Duration.ofMinutes(30));
-      log.debug("User validation result cached for ID: {} - Valid: {}", userId, isValid);
+      log.debug("User validation result cached for ID: {}", userId);
 
       sendValidationResponse(responseObserver, isValid);
 
@@ -131,29 +114,27 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
     }
   }
 
-  // Helper Methods
+  // --- Helper Methods ---
 
+  /** Validates the essential fields of the user creation request. */
   private void validateCreateRequest(CreateUserRequest request) {
-    log.debug("Validating create user request");
-
-    if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+    if (!StringUtils.hasText(request.getUsername())) {
       throw new IllegalArgumentException("Username is required");
     }
-    if (request.getEmail() == null || !request.getEmail().contains("@")) {
+    if (!StringUtils.hasText(request.getEmail()) || !request.getEmail().contains("@")) {
       throw new IllegalArgumentException("Valid email is required");
     }
-    if (request.getPassword() == null || request.getPassword().length() < 8) {
+    if (!StringUtils.hasText(request.getPassword()) || request.getPassword().length() < 8) {
       throw new IllegalArgumentException("Password must be at least 8 characters");
     }
   }
 
+  /** Maps the gRPC request object to a User entity for persistence. */
   private User buildUserFromRequest(CreateUserRequest request) {
-    log.debug("Building user entity from request");
-
     return User.builder()
         .username(request.getUsername())
         .email(request.getEmail())
-        .password(passwordEncoder.encode(request.getPassword()))
+        .password(passwordEncoder.encode(request.getPassword())) // Securely hash the password.
         .firstName(request.getFirstName())
         .lastName(request.getLastName())
         .isActive(true)
@@ -161,9 +142,8 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
         .build();
   }
 
+  /** Maps the persisted User entity to a gRPC response object. */
   private UserResponse buildUserResponse(User user) {
-    log.debug("Building user response for ID: {}", user.getId());
-
     return UserResponse.newBuilder()
         .setUserId(user.getId().toString())
         .setUsername(user.getUsername())
@@ -175,20 +155,18 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
         .build();
   }
 
+  /** Caches the user's validation status in Redis. */
   private void cacheUserValidationStatus(User user) {
     try {
       String cacheKey = "user:valid:" + user.getId();
       redisTemplate.opsForValue().set(cacheKey, user.isValidForOrder(), Duration.ofHours(24));
-      log.debug("User validation status cached with key: {}", cacheKey);
     } catch (Exception e) {
-      log.warn(
-          "Failed to cache user validation status - ID: {} - Error: {}",
-          user.getId(),
-          e.getMessage());
-      // Don't throw exception as caching failure shouldn't affect the main flow
+      // Log a warning but don't fail the main operation if caching fails.
+      log.warn("Failed to cache user validation status for ID: {}", user.getId());
     }
   }
 
+  /** Helper to construct and send the validation response. */
   private void sendValidationResponse(
       StreamObserver<ValidateUserResponse> responseObserver, boolean isValid) {
     ValidateUserResponse response = ValidateUserResponse.newBuilder().setValid(isValid).build();
@@ -196,15 +174,14 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
     responseObserver.onCompleted();
   }
 
-  // Fallback Methods
+  // --- Fallback Methods ---
 
+  /** Fallback method for the circuit breaker on createUser. */
   private void createUserFallback(
       CreateUserRequest request, StreamObserver<UserResponse> responseObserver, Exception e) {
     log.error(
-        "Circuit breaker triggered for user creation - Username: {} - Error: {}",
-        request.getUsername(),
-        e.getMessage(),
-        e);
+        "Circuit breaker triggered for user creation - Username: {}", request.getUsername(), e);
+    // Return a UNAVAILABLE status to the client, indicating a temporary service issue.
     responseObserver.onError(
         Status.UNAVAILABLE
             .withDescription("Service temporarily unavailable, please try again later")

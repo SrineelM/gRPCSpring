@@ -2,6 +2,7 @@ package com.poc.grpc.user;
 
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import net.devh.boot.grpc.server.service.GrpcService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
@@ -72,7 +73,7 @@ public class UserServiceApplication {
   private static void logGrpcServices(ConfigurableApplicationContext context) {
     try {
       Map<String, Object> netDevhServices =
-          context.getBeansWithAnnotation(net.devh.boot.grpc.server.service.GrpcService.class);
+          context.getBeansWithAnnotation(GrpcService.class);
 
       if (!netDevhServices.isEmpty()) {
         log.info("Registered gRPC services:");

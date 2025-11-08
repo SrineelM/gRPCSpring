@@ -41,8 +41,8 @@ dependencies {
     implementation "io.grpc:grpc-netty-shaded"
 
     // gRPC Spring Boot starters (server and client)
-    implementation "net.devh:grpc-server-spring-boot-starter"
-    implementation "net.devh:grpc-client-spring-boot-starter"
+    api "net.devh:grpc-server-spring-boot-starter"
+    api "net.devh:grpc-client-spring-boot-starter"
 
     // Annotations
     api "jakarta.annotation:jakarta.annotation-api:2.1.1"
